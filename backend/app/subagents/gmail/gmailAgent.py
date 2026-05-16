@@ -128,7 +128,7 @@ def gmailAgent(prompt:str):
         llm_with_tools = llm.bind_tools(tools)
         messages = [SystemMessage(content=getSystemPrompt(""))] + state["messages"]
         response = llm_with_tools.invoke(messages)
-        #print(response)
+        print(response)
         return {"messages": [response]} 
     
     def analysis_node():

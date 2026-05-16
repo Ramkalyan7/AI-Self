@@ -1,20 +1,12 @@
 import logging
 from app.core.config import  get_settings
 from app.db.database import get_session
-from app.dependencies.auth import get_current_user
 from app.models.gmailtokens import GmailTokens
-from app.models.user import User
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, Request,status
 from authlib.integrations.starlette_client import OAuth
-from fastapi.responses import JSONResponse, RedirectResponse
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request as GoogleRequest
+from fastapi.responses import  RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
-
-
 
 
 logger=logging.getLogger(__name__)
@@ -100,118 +92,4 @@ async def google_callback(request: Request,session: AsyncSession = Depends(get_s
     except Exception as e:
         logger.error(e)
         return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="error while authenticating users gmail account")
-
-
-
-# # ---------------------------------------------------
-# # Build Google Credentials
-# # ---------------------------------------------------
-
-# def get_google_credentials(token_data):
-
-#     credentials = Credentials(
-#         token=token_data["access_token"],
-#         refresh_token=token_data.get("refresh_token"),
-#         token_uri="https://oauth2.googleapis.com/token",
-#         client_id=GOOGLE_CLIENT_ID,
-#         client_secret=GOOGLE_CLIENT_SECRET,
-#         scopes=SCOPES
-#     )
-
-#     # auto refresh expired token
-#     if credentials.expired and credentials.refresh_token:
-
-#         credentials.refresh(
-#             GoogleRequest()
-#         )
-
-#     return credentials
-
-
-# # ---------------------------------------------------
-# # Gmail Messages
-# # ---------------------------------------------------
-
-# @app.get("/gmail/messages")
-# async def gmail_messages(request: Request):
-
-#     token_data = request.session.get("token")
-
-#     if not token_data:
-#         return JSONResponse(
-#             status_code=401,
-#             content={
-#                 "message": "Not authenticated"
-#             }
-#         )
-
-#     credentials = get_google_credentials(
-#         token_data
-#     )
-
-#     service = build(
-#         "gmail",
-#         "v1",
-#         credentials=credentials
-#     )
-
-#     results = (
-#         service.users()
-#         .messages()
-#         .list(
-#             userId="me",
-#             maxResults=10
-#         )
-#         .execute()
-#     )
-
-#     messages = results.get("messages", [])
-
-#     return {
-#         "messages": messages
-#     }
-
-
-# # ---------------------------------------------------
-# # Single Email Details
-# # ---------------------------------------------------
-
-# @app.get("/gmail/message/{message_id}")
-# async def gmail_message(
-#     message_id: str,
-#     request: Request
-# ):
-
-#     token_data = request.session.get("token")
-
-#     if not token_data:
-#         return JSONResponse(
-#             status_code=401,
-#             content={
-#                 "message": "Not authenticated"
-#             }
-#         )
-
-#     credentials = get_google_credentials(
-#         token_data
-#     )
-
-#     service = build(
-#         "gmail",
-#         "v1",
-#         credentials=credentials
-#     )
-
-#     message = (
-#         service.users()
-#         .messages()
-#         .get(
-#             userId="me",
-#             id=message_id
-#         )
-#         .execute()
-#     )
-
-#     return message
-
 
