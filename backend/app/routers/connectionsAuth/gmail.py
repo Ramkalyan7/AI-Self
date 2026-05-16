@@ -5,7 +5,7 @@ from app.dependencies.auth import get_current_user
 from app.models.gmailtokens import GmailTokens
 from app.models.user import User
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request,status
 from authlib.integrations.starlette_client import OAuth
 from fastapi.responses import JSONResponse, RedirectResponse
 from google.oauth2.credentials import Credentials
@@ -56,19 +56,22 @@ oauth.register(
 
 @router.get("/login")
 async def google_login(request: Request):
+    try:
+        redirect_uri = request.url_for(
+            "google_callback"
+        )
+        
+        request.session["app_user_id"] = 0
 
-    redirect_uri = request.url_for(
-        "google_callback"
-    )
-    
-    request.session["app_user_id"] = 0
-
-    return await oauth.google.authorize_redirect(
-        request,
-        redirect_uri,
-        access_type="offline",
-        prompt="consent",
-    )
+        return await oauth.google.authorize_redirect(
+            request,
+            redirect_uri,
+            access_type="offline",
+            prompt="consent",
+        )
+    except Exception as e:
+        logger.error(e)
+        return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Error while logging in")
     
     
 @router.get("/callback")
@@ -96,7 +99,7 @@ async def google_callback(request: Request,session: AsyncSession = Depends(get_s
         )
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"error":"some error occurred"})
+        return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="error while authenticating users gmail account")
 
 
 
