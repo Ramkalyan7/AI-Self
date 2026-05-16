@@ -1,156 +1,214 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import RedirectResponse
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request as GoogleRequest
-import os
-from dotenv import load_dotenv
+import logging
+from app.core.config import  get_settings
+from app.db.database import get_session
 from app.dependencies.auth import get_current_user
+from app.models.gmailtokens import GmailTokens
 from app.models.user import User
+from dotenv import load_dotenv
+from fastapi import APIRouter, Depends, Request
+from authlib.integrations.starlette_client import OAuth
+from fastapi.responses import JSONResponse, RedirectResponse
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request as GoogleRequest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 
+
+
+logger=logging.getLogger(__name__)
 
 load_dotenv()
 
 router = APIRouter(prefix="/auth/gmail", tags=["Gmail OAuth"])
 
+oauth = OAuth()
 
 SCOPES = [
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/gmail.send",
-    "openid",     
+    "openid",
     "email",
-    "profile"
+    "profile",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+     "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.send",
 ]
 
+settings = get_settings()
 
-CLIENT_CONFIG = {
-    "web": {
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": [os.getenv("REDIRECT_URI")],
+oauth.register(
+    name="google",
+    client_id=settings.google_oauth_client_id,
+    client_secret=settings.google_oauth_client_secret,
+    server_metadata_url=(
+        "https://accounts.google.com/"
+        ".well-known/openid-configuration"
+    ),
+    client_kwargs={
+        "scope": " ".join(SCOPES)
     }
-}
+)
+
+#need to activate authmiddleware here
+#need to send actual user id here
 
 
-def create_flow() -> Flow:
-    return Flow.from_client_config(
-        CLIENT_CONFIG,
-        scopes=SCOPES,
-        redirect_uri=os.getenv("REDIRECT_URI")
+@router.get("/login")
+async def google_login(request: Request):
+
+    redirect_uri = request.url_for(
+        "google_callback"
     )
-
-
-@router.get("/connect")
-def connect_gmail(current_user:User=Depends(get_current_user)):
-   
-    flow = create_flow()
     
-    auth_url, _ = flow.authorization_url(
+    request.session["app_user_id"] = 0
+
+    return await oauth.google.authorize_redirect(
+        request,
+        redirect_uri,
         access_type="offline",
         prompt="consent",
-        state=str(current_user.id), 
-        include_granted_scopes="true"
     )
     
-    return {"url": auth_url}
-
-
+    
 @router.get("/callback")
-def gmail_callback(
-    code: str,          
-    state: str,        
-    #db: Session = Depends(get_db)
-):
-   
-    flow = create_flow()
-    
+async def google_callback(request: Request,session: AsyncSession = Depends(get_session)):
     try:
-        flow.fetch_token(code=code)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
-    
-    creds = flow.credentials
-    user_id = int(state)
-    
-    gmail_email = None
-    if creds.id_token:
-        from jose import jwt as jose_jwt
-        claims = jose_jwt.get_unverified_claims(creds.id_token)
-        gmail_email = claims.get("email")
-    
-    #existing_token = db.query(GoogleToken).filter_by(user_id=user_id).first()
-    
-    if existing_token:
-        existing_token.access_token = encrypt_token(creds.token)
-        existing_token.refresh_token = encrypt_token(creds.refresh_token)
-        existing_token.token_expiry = creds.expiry
-        existing_token.gmail_email = gmail_email
-    else:
-        new_token = GoogleToken(
-            user_id=user_id,
-            access_token=encrypt_token(creds.token),      
-            refresh_token=encrypt_token(creds.refresh_token),
-            token_expiry=creds.expiry,
-            gmail_email=gmail_email
+        token = await oauth.google.authorize_access_token(
+            request
         )
-        #db.add(new_token)
+
+        user_id=request.session.get("app_user_id")
+        access_token=token.get("access_token")
+        refresh_token=token.get("refresh_token")
     
-   # db.commit()
-    
-    # Redirect the user's browser back to React frontend
-    frontend_url = os.getenv("FRONTEND_URL")
-    return RedirectResponse(f"{frontend_url}/dashboard?gmail=connected")
+        #2) store the tokens corresponding to the user id
+        gmailTokens = GmailTokens(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+        session.add(gmailTokens)
+        await session.commit()
+        await session.refresh(gmailTokens)
+        return RedirectResponse(
+            url=f"{settings.frontend_url}"
+        )
+    except Exception as e:
+        logger.error(e)
+        return JSONResponse({"error":"some error occurred"})
 
 
-@router.delete("/disconnect")
-def disconnect_gmail(
-    current_user=Depends(get_current_user),
-   # db: Session = Depends(get_db)
-):
-   
-    #token_row = db.query(GoogleToken).filter_by(user_id=current_user.id).first()
-    if not token_row:
-        raise HTTPException(status_code=404, detail="Gmail not connected")
-    
-    #db.delete(token_row)
-    #db.commit()
-    return {"message": "Gmail disconnected successfully"}
+
+# # ---------------------------------------------------
+# # Build Google Credentials
+# # ---------------------------------------------------
+
+# def get_google_credentials(token_data):
+
+#     credentials = Credentials(
+#         token=token_data["access_token"],
+#         refresh_token=token_data.get("refresh_token"),
+#         token_uri="https://oauth2.googleapis.com/token",
+#         client_id=GOOGLE_CLIENT_ID,
+#         client_secret=GOOGLE_CLIENT_SECRET,
+#         scopes=SCOPES
+#     )
+
+#     # auto refresh expired token
+#     if credentials.expired and credentials.refresh_token:
+
+#         credentials.refresh(
+#             GoogleRequest()
+#         )
+
+#     return credentials
 
 
-def get_gmail_service(user_id: int, db: Session):
-    from googleapiclient.discovery import build
-    
-    #token_row = db.query(GoogleToken).filter_by(user_id=user_id).first()
-    if not token_row:
-        raise HTTPException(status_code=403, detail="Gmail not connected. Please connect Gmail first.")
-    
-    # Decrypt tokens from DB
-    #access_token = decrypt_token(token_row.access_token)
-    #refresh_token = decrypt_token(token_row.refresh_token)
-    
-    # Rebuild Credentials object from stored values
-    creds = Credentials(
-        token=access_token,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.getenv("GOOGLE_CLIENT_ID"),
-        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-        scopes=SCOPES
-    )
-    
-    # Auto-refresh if access_token is expired
-    if creds.expired and creds.refresh_token:
-        creds.refresh(GoogleRequest())
-        
-        # Save the new access_token back to DB (refresh_token stays the same)
-        token_row.access_token = encrypt_token(creds.token)
-        token_row.token_expiry = creds.expiry
-        db.commit()
-    
-    # build() creates the Gmail API client — authenticated with this user's creds
-    return build("gmail", "v1", credentials=creds)
+# # ---------------------------------------------------
+# # Gmail Messages
+# # ---------------------------------------------------
+
+# @app.get("/gmail/messages")
+# async def gmail_messages(request: Request):
+
+#     token_data = request.session.get("token")
+
+#     if not token_data:
+#         return JSONResponse(
+#             status_code=401,
+#             content={
+#                 "message": "Not authenticated"
+#             }
+#         )
+
+#     credentials = get_google_credentials(
+#         token_data
+#     )
+
+#     service = build(
+#         "gmail",
+#         "v1",
+#         credentials=credentials
+#     )
+
+#     results = (
+#         service.users()
+#         .messages()
+#         .list(
+#             userId="me",
+#             maxResults=10
+#         )
+#         .execute()
+#     )
+
+#     messages = results.get("messages", [])
+
+#     return {
+#         "messages": messages
+#     }
+
+
+# # ---------------------------------------------------
+# # Single Email Details
+# # ---------------------------------------------------
+
+# @app.get("/gmail/message/{message_id}")
+# async def gmail_message(
+#     message_id: str,
+#     request: Request
+# ):
+
+#     token_data = request.session.get("token")
+
+#     if not token_data:
+#         return JSONResponse(
+#             status_code=401,
+#             content={
+#                 "message": "Not authenticated"
+#             }
+#         )
+
+#     credentials = get_google_credentials(
+#         token_data
+#     )
+
+#     service = build(
+#         "gmail",
+#         "v1",
+#         credentials=credentials
+#     )
+
+#     message = (
+#         service.users()
+#         .messages()
+#         .get(
+#             userId="me",
+#             id=message_id
+#         )
+#         .execute()
+#     )
+
+#     return message
+
 

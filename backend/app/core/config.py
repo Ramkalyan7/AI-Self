@@ -21,6 +21,9 @@ class Settings(BaseSettings):
         default=60 * 24,
         alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
     )
+    google_oauth_client_secret:str
+    google_oauth_client_id:str
+    frontend_url:str
 
     model_config = SettingsConfigDict(
         env_file=".env",

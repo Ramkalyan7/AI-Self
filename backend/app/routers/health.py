@@ -13,3 +13,4 @@ router = APIRouter(tags=["health"])
 async def health_check(session: AsyncSession = Depends(get_session)) -> HealthResponse:
     await session.execute(text("select 1"))
     return HealthResponse(status="ok", database="connected")
+    
