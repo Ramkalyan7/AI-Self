@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException, status
 from langchain_google_genai import ChatGoogleGenerativeAI
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from langchain.tools import tool
 from langchain.agents import create_agent
 
 
@@ -144,9 +144,19 @@ async def build_system_prompt_for_user(session: AsyncSession, user_id: str) -> s
     return build_persona_system_prompt(profile)
 
 
+@tool
+def square_root(x: float) -> float:
+    """Calculate the square root of a number"""
+    return x ** 0.5
+
+
+
+
+
+
 def generate_text_completion(prompt: str, system_prompt: str)->LlmGenerateResponse:
     model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
-    tools = []
+    tools = [square_root]
     agent = create_agent(
         model=model,
         tools=tools,
@@ -157,6 +167,9 @@ def generate_text_completion(prompt: str, system_prompt: str)->LlmGenerateRespon
         {"messages": [{"role": "user", "content": prompt}]}
     )
     
-    print(result["structured_response"])
+    print(result["messages"])
 
     return result["structured_response"]
+
+
+
