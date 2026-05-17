@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     app_host: str = Field(default="127.0.0.1", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
+    db_echo: bool = Field(default=False, alias="DB_ECHO")
     database_url: str = Field(default="", alias="DATABASE_URL")
     llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")

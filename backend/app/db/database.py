@@ -10,7 +10,7 @@ settings = get_settings()
 if not settings.database_url:
     raise RuntimeError("DATABASE_URL must be configured before starting the backend.")
 
-async_engine = create_async_engine(settings.database_url, echo=settings.is_development)
+async_engine = create_async_engine(settings.database_url, echo=settings.db_echo)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,

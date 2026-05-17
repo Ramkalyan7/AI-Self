@@ -7,8 +7,7 @@ from app.db.database import get_session
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.llm import LlmGenerateRequest, LlmGenerateResponse
-from app.agent.agent import generate_text_completion
-from app.services.onboarding import build_system_prompt_for_user
+from app.agent.agent import build_system_prompt_for_user, generate_text_completion
 
 
 logger = logging.getLogger(__name__)
@@ -26,11 +25,11 @@ async def generate_text(
     try:
         _ = user
         system_instruction = await build_system_prompt_for_user(session, user.id)
-        text = generate_text_completion(
+        response = generate_text_completion(
             prompt=payload.prompt,
             system_prompt=system_instruction,
         )
-        return LlmGenerateResponse(text=text)
+        return response
     except HTTPException:
         raise
     except Exception as exc:

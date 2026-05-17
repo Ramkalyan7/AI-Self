@@ -30,8 +30,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         request.state.user = None
-        print("requestpath "+request.url.path)
-        print(request.url.path in self.public_paths)
         if request.url.path in self.public_paths:
             return await call_next(request)
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from app.models.onboarding import OnboardingProfile
 from app.repositories.onboarding import get_onboarding_profile_by_user_id
+from app.schemas.llm import LlmGenerateResponse
 from dotenv import load_dotenv
 from fastapi import HTTPException, status
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -143,24 +144,19 @@ async def build_system_prompt_for_user(session: AsyncSession, user_id: str) -> s
     return build_persona_system_prompt(profile)
 
 
-@dataclass(frozen=True)
-class LlmRequest:
-    prompt: str
-    system_instruction: str | None = None
-    model: str | None = None
-
-
-@dataclass(frozen=True)
-class LlmResponse:
-    text: str
-
-def generate_text_completion(prompt: str,system_prompt:str)->LlmResponse:
-    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
-    tools=[]
-    agent=create_agent(model=model,tools=tools,system_prompt=system_prompt,response_format=LlmResponse)
+def generate_text_completion(prompt: str, system_prompt: str)->LlmGenerateResponse:
+    model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+    tools = []
+    agent = create_agent(
+        model=model,
+        tools=tools,
+        system_prompt=system_prompt,
+        response_format=LlmGenerateResponse,
+    )
     result = agent.invoke(
-    {"messages": [{"role": "user", "content": prompt}]}
+        {"messages": [{"role": "user", "content": prompt}]}
     )
     
-    return result
+    print(result["structured_response"])
 
+    return result["structured_response"]
