@@ -5,6 +5,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from typing_extensions import TypedDict
 from typing import Annotated
 from langgraph.graph.message import add_messages
+from langchain.tools import tool,ToolRuntime
 
 
 
@@ -115,8 +116,8 @@ Help the user manage Gmail efficiently while protecting privacy, avoiding accide
 """
 
 
-
-def gmailAgent(prompt:str):
+@tool
+def gmailAgent(prompt:str,runtime:ToolRuntime):
     tools = []
     tool_node = ToolNode(tools)
     
@@ -127,7 +128,8 @@ def gmailAgent(prompt:str):
         llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
         llm_with_tools = llm.bind_tools(tools)
         messages = [SystemMessage(content=getSystemPrompt(""))] + state["messages"]
-        response = llm_with_tools.invoke(messages)
+        config = {"configurable": {"user_id": "user_123"}}
+        response = llm_with_tools.invoke(messages,config=config)
         print(response)
         return {"messages": [response]} 
     
@@ -150,8 +152,8 @@ def gmailAgent(prompt:str):
     builder.add_conditional_edges("agent", tools_condition)
     graph = builder.compile();
     result = graph.invoke({
-    "messages": [HumanMessage(content=f"{prompt}")]
-    })
+    "messages": [HumanMessage(content=f"{prompt}")],
+    },context=runtime.context)
     print(result)
     
 
