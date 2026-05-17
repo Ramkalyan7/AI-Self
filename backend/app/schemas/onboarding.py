@@ -55,7 +55,6 @@ class OnboardingProfileResponse(BaseModel):
     primary_language: str
     secondary_language: str | None
     industry: str
-    system_prompt_preview: str
     completed_at: datetime
     created_at: datetime
     updated_at: datetime
