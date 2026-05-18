@@ -26,6 +26,7 @@ async def generate_text(
         _ = user
         system_instruction = await build_system_prompt_for_user(session, user.id)
         response = generate_text_completion(
+            user_id=user.id,
             prompt=payload.prompt,
             system_prompt=system_instruction,
         )
