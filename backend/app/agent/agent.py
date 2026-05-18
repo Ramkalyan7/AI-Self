@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from app.models.onboarding import OnboardingProfile
 from app.repositories.onboarding import get_onboarding_profile_by_user_id
 from app.schemas.llm import LlmGenerateResponse
@@ -8,9 +7,30 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain.tools import tool
 from langchain.agents import create_agent
-
+from composio import Composio
+from composio_langchain import LangchainProvider
+from enum import Enum
 
 load_dotenv()
+
+
+class AvailableConnections(Enum):
+    GMAIL="GMAIL"
+    GITHUB="GITHUB"
+    NOTION="NOTION"
+    GOOGLESHEETS="GOOGLESHEETS"
+    GOOGLEDRIVE="GOOGLEDRIVE"
+    SLACK="SLACK"
+    CALENDLY="CALENDLY"
+    COMPOSIO_SEARCH="COMPOSIO_SEARCH"
+    CONFLUENCE="CONFLUENCE"
+    DISCORD="DISCORD"
+    GOOGLE_MAPS="GOOGLE_MAPS"
+    TWITTER="TWITTER"
+    INSTAGRAM="INSTAGRAM"
+    LINKEDIN="LINKEDIN"
+    JIRA="JIRA"
+
 
 
 def build_persona_system_prompt(profile: OnboardingProfile) -> str:
@@ -144,19 +164,20 @@ async def build_system_prompt_for_user(session: AsyncSession, user_id: str) -> s
     return build_persona_system_prompt(profile)
 
 
-@tool
-def square_root(x: float) -> float:
-    """Calculate the square root of a number"""
-    return x ** 0.5
-
-
-
-
-
-
-def generate_text_completion(prompt: str, system_prompt: str)->LlmGenerateResponse:
+def generate_text_completion(user_id:str,prompt: str, system_prompt: str)->LlmGenerateResponse:
+    
+    composio=Composio(provider=LangchainProvider())
+    
     model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
-    tools = [square_root]
+    
+    available_connection_names=[]
+    for connection in AvailableConnections:
+        available_connection_names.append(connection)
+    
+    composio_session = composio.create(user_id=user_id,manage_connections=False,toolkits=available_connection_names)
+        
+    tools=composio_session.tools()
+
     agent = create_agent(
         model=model,
         tools=tools,
