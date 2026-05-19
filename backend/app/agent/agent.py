@@ -182,7 +182,7 @@ def generate_text_completion(user_id:str,prompt: str, system_prompt: str,thread_
     composio_session = composio.create(user_id=user_id,manage_connections=False,toolkits=available_connection_names)
         
     tools=composio_session.tools()
-    with PostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+    with PostgresSaver.from_conn_string(settings.checkpoint_database_url) as checkpointer:
         checkpointer.setup()
 
         agent = create_agent(
@@ -201,6 +201,5 @@ def generate_text_completion(user_id:str,prompt: str, system_prompt: str,thread_
         print(result["messages"])
 
         return result["structured_response"]
-
 
 

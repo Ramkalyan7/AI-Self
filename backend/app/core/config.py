@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         return self.app_env.lower() == "development"
 
+    @property
+    def checkpoint_database_url(self) -> str:
+        return self.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+
 
 @lru_cache
 def get_settings() -> Settings:

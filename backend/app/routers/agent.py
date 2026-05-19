@@ -51,7 +51,7 @@ async def get_all_messages(thread_id:str,user:User=Depends(get_current_user),ses
         if not thread:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You cannot access this thread")
 
-        with PostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+        with PostgresSaver.from_conn_string(settings.checkpoint_database_url) as checkpointer:
             checkpointer.setup()
             
             model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)

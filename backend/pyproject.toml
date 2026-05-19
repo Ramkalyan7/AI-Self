@@ -27,6 +27,7 @@ dependencies = [
     "composio>=0.13.1",
     "composio-langchain>=0.13.1",
     "langgraph-checkpoint-postgres>=3.1.0",
+    "psycopg[binary]>=3.3.4",
 ]
 
 [project.optional-dependencies]
