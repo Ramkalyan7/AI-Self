@@ -1,3 +1,4 @@
+from app.core.config import get_settings
 from app.models.onboarding import OnboardingProfile
 from app.repositories.onboarding import get_onboarding_profile_by_user_id
 from app.schemas.llm import LlmGenerateResponse
@@ -10,6 +11,7 @@ from langchain.agents import create_agent
 from composio import Composio
 from composio_langchain import LangchainProvider
 from enum import Enum
+from langgraph.checkpoint.postgres import PostgresSaver
 
 load_dotenv()
 
@@ -164,7 +166,10 @@ async def build_system_prompt_for_user(session: AsyncSession, user_id: str) -> s
     return build_persona_system_prompt(profile)
 
 
-def generate_text_completion(user_id:str,prompt: str, system_prompt: str)->LlmGenerateResponse:
+def generate_text_completion(user_id:str,prompt: str, system_prompt: str,thread_id:str)->LlmGenerateResponse:
+    
+    
+    settings=get_settings()
     
     composio=Composio(provider=LangchainProvider())
     
@@ -177,15 +182,19 @@ def generate_text_completion(user_id:str,prompt: str, system_prompt: str)->LlmGe
     composio_session = composio.create(user_id=user_id,manage_connections=False,toolkits=available_connection_names)
         
     tools=composio_session.tools()
+    with PostgresSaver.from_conn_string(settings.database_url) as checkpointer:
+        checkpointer.setup()
 
-    agent = create_agent(
-        model=model,
-        tools=tools,
-        system_prompt=system_prompt,
-        response_format=LlmGenerateResponse,
-    )
+        agent = create_agent(
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+            response_format=LlmGenerateResponse,
+            checkpointer=checkpointer
+        )
     result = agent.invoke(
-        {"messages": [{"role": "user", "content": prompt}]}
+        {"messages": [{"role": "user", "content": prompt}]},
+        {"configurable":{"thread_id":thread_id}}
     )
     
     print(result["messages"])
