@@ -4,7 +4,7 @@ FastAPI backend for Selfy AI.
 
 The backend uses:
 
-- PostgreSQL through async SQLAlchemy/SQLModel
+- PostgreSQL through async SQLAlchemy
 - Alembic for schema migrations
 - LangChain with Gemini as the first LLM provider
 - JWTs issued by this backend for auth
@@ -18,7 +18,7 @@ backend/
 |   |-- core/           # Settings and shared app primitives
 |   |-- db/             # Async database engine and sessions
 |   |-- integrations/   # Third-party API clients
-|   |-- models/         # SQLModel table models
+|   |-- models/         # SQLAlchemy table models
 |   |-- repositories/   # Database-backed data access
 |   |-- routers/        # Feature-based HTTP routers
 |   |-- schemas/        # Request/response schemas
@@ -59,7 +59,7 @@ uv run python main.py
 
 ## Database Changes
 
-After changing SQLModel models, generate and review a migration:
+After changing SQLAlchemy models, generate and review a migration:
 
 ```bash
 uv run alembic revision --autogenerate -m "describe your change"

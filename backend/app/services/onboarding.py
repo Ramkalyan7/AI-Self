@@ -15,7 +15,7 @@ from app.schemas.onboarding import (
 
 def _to_response(profile: OnboardingProfile) -> OnboardingProfileResponse:
     return OnboardingProfileResponse(
-        **profile.model_dump()
+        **profile.to_dict()
     )
 
 

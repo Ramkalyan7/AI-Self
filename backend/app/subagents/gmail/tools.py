@@ -27,7 +27,7 @@ def get_google_credentials(user_id):
     
     session=get_session()
     token_data =session.get(gmailtokens.GmailTokens,user_id)  
-    token_data_dict=token_data.model_dump()
+    token_data_dict=token_data.to_dict()
 
     credentials = Credentials(
         token=token_data_dict.get("access_token"),
