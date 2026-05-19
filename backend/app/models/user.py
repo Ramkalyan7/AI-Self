@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from .messageThreads import MessageThreads
     from .onboarding import OnboardingProfile
 
 
@@ -23,4 +24,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String)
     onboarding_profile: Mapped[Optional["OnboardingProfile"]] = relationship(
         back_populates="user"
+    )
+    message_threads: Mapped[list["MessageThreads"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
