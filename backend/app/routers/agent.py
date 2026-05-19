@@ -23,22 +23,33 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["Agent"])
 
+
+
 @router.get("/threads")
-async def get_all_message_threads(user:User=Depends[get_current_user],session:AsyncSession=Depends(get_session)):
+async def get_all_message_threads(user:User=Depends(get_current_user),session:AsyncSession=Depends(get_session)):
     try:
         result= await session.execute(select(MessageThreads).where(MessageThreads.user_id==user.id))
         message_threads=result.scalars().all()
         return message_threads    
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")
+        raise HTTPException(status_code=500,detail="Internal Server Error")
+    
+    
     
 
 @router.get("/messages/{thread_id}")
-async def get_all_messages(thread_id:str):
+async def get_all_messages(thread_id:str,user:User=Depends(get_current_user),session:AsyncSession=Depends(get_session)):
     try:
+        
         settings=get_settings()
-        config = {"configurable": {"thread_id": thread_id}}
+        
+        result=await session.execute(select(MessageThreads).where(MessageThreads.user_id==user.id,MessageThreads.message_thread_id==thread_id ))
+        
+        thread=result.scalar_one_or_none()
+        
+        if not thread:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You cannot access this thread")
 
         with PostgresSaver.from_conn_string(settings.database_url) as checkpointer:
             checkpointer.setup()
@@ -56,14 +67,16 @@ async def get_all_messages(thread_id:str):
             return messages
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")
+        raise HTTPException(status_code=500,detail="Internal Server Error")
+    
+    
     
     
 
 @router.post("/new")
-async def create_new_message_thread(user:User=Depends[get_current_user],session:AsyncSession = Depends(get_session)):
+async def create_new_message_thread(user:User=Depends(get_current_user),session:AsyncSession = Depends(get_session)):
     try:
-        thread_id=uuid4()
+        thread_id=str(uuid4())
         message_thread=MessageThreads(
         message_thread_id=thread_id,
         user_id=user.id
@@ -74,16 +87,24 @@ async def create_new_message_thread(user:User=Depends[get_current_user],session:
         return message_thread.message_thread_id
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")
+        raise HTTPException(status_code=500,detail="Internal Server Error")
 
 
 @router.post("/generate", response_model=LlmGenerateResponse)
 async def generate_text(
-    payload,
+    payload:LlmGenerateRequest,
     user: User = Depends(get_current_user),
-    session:AsyncSession=Depends[get_session]
+    session:AsyncSession=Depends(get_session)
 ) -> LlmGenerateResponse:
     try:    
+        
+        result=await session.execute(select(MessageThreads).where(MessageThreads.user_id==user.id,MessageThreads.message_thread_id==payload.thread_id ))
+        
+        thread=result.scalar_one_or_none()
+        
+        if not thread:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="You cannot access this thread")
+        
         system_instruction = await build_system_prompt_for_user(session, user.id)
         response = generate_text_completion(
             user_id=user.id,

@@ -20,7 +20,7 @@ router=APIRouter(prefix="connections")
 settings=get_settings()
 
 @router.get("/register")
-async def register(connection_name:str,user:User=Depends[get_current_user]):
+async def register(connection_name:str,user:User=Depends(get_current_user)):
     try:
         composio = Composio()
         composio_session=composio.create(user_id=user.id)
@@ -29,7 +29,7 @@ async def register(connection_name:str,user:User=Depends[get_current_user]):
         return RedirectResponse(redirect_url);
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")
+        raise HTTPException(status_code=500,detail="Internal Server Error")
     
 
 
@@ -39,7 +39,7 @@ async def connect_callback(connection_name:str,status:str):
         return RedirectResponse(f"{settings.frontend_url}/connections?connection_name={connection_name}&status={status}")
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")  
+        raise HTTPException(status_code=500,detail="Internal Server Error")  
     
     
     
@@ -61,12 +61,12 @@ async def get_active_connections(user:User=Depends(get_current_user)):
                 
     except Exception as e:
         print(e)
-        return HTTPException(status_code=500,detail="Internal Server Error")   
+        raise HTTPException(status_code=500,detail="Internal Server Error")   
     
     
     
 @router.get("/tools/{connection_name}")
-async def get_all_tools(connection_name:str,user:User=Depends[get_current_user]):
+async def get_all_tools(connection_name:str,user:User=Depends(get_current_user)):
     composio = Composio()
     tools=composio.tools.get(user.id,toolkits=[connection_name],limit=40)
     return tools

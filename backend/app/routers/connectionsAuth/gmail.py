@@ -63,7 +63,7 @@ async def google_login(request: Request):
         )
     except Exception as e:
         logger.error(e)
-        return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Error while logging in")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="Error while logging in")
     
     
 @router.get("/callback")
@@ -91,5 +91,5 @@ async def google_callback(request: Request,session: AsyncSession = Depends(get_s
         )
     except Exception as e:
         logger.error(e)
-        return HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="error while authenticating users gmail account")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail="error while authenticating users gmail account")
 

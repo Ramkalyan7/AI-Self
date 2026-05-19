@@ -192,14 +192,15 @@ def generate_text_completion(user_id:str,prompt: str, system_prompt: str,thread_
             response_format=LlmGenerateResponse,
             checkpointer=checkpointer
         )
-    result = agent.invoke(
-        {"messages": [{"role": "user", "content": prompt}]},
-        {"configurable":{"thread_id":thread_id}}
-    )
+        
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": prompt}]},
+            {"configurable":{"thread_id":thread_id}}
+        )
     
-    print(result["messages"])
+        print(result["messages"])
 
-    return result["structured_response"]
+        return result["structured_response"]
 
 
 
